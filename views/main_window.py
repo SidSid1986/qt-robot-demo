@@ -6,6 +6,11 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                                QMessageBox, QApplication)
 from PySide6.QtCore import Qt, QTimer, QPoint, QRect
 from PySide6.QtGui import QPixmap, QCursor, QMouseEvent
+from .pages.tree_page import TreePage  # 导入TreePage
+from .pages.code_edit import CodeEditPage
+from .pages.GLBViewerPage import GLBViewerPage
+
+
 
 
 class DraggableWindow(QMainWindow):
@@ -27,6 +32,8 @@ class DraggableWindow(QMainWindow):
         self.resize_start_position = QPoint()
         self.resize_start_geometry = QRect()
         self.border_width = 8
+
+
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.LeftButton:
@@ -137,6 +144,9 @@ class MainWindow:
         self.process = psutil.Process(self.pid)
         self.cpu_readings = []
 
+        # 初始化组件字典
+        self.components = {}  # 添加这行
+
         # 创建可拖拽的主窗口
         self.ui = DraggableWindow()
 
@@ -181,6 +191,7 @@ class MainWindow:
         # 窗口居中
         self.center_on_screen()
 
+
     def setup_main_content(self, left_layout):
         """主内容区域 - 可替换的组件容器"""
         # 创建堆叠窗口用于组件切换
@@ -188,34 +199,75 @@ class MainWindow:
         self.main_content.setMouseTracking(True)
         self.main_content.setContentsMargins(0, 0, 0, 0)
 
-        # 创建默认主页（后续可以替换为其他组件）
-        self.setup_home_page()
+        # 创建并保存主页组件
+        self.home_page_widget = self.create_home_page()
+        self.main_content.addWidget(self.home_page_widget)
+        self.components["home"] = self.home_page_widget  # 保存主页引用
 
         # 设置主页为默认显示
-        self.main_content.setCurrentIndex(0)
-        self.original_content = self.main_content.currentWidget()
+        self.main_content.setCurrentWidget(self.home_page_widget)
 
         left_layout.addWidget(self.main_content)
 
-    def setup_home_page(self):
-        """设置主页内容 - 后续可以替换为其他组件"""
+    def create_home_page(self):
+        """创建主页组件并返回"""
         home_page = QWidget()
         home_page.setMouseTracking(True)
         home_layout = QGridLayout(home_page)
         home_layout.setSpacing(8)
         home_layout.setContentsMargins(0, 0, 0, 0)
 
-        # 功能按钮文本
-        button_texts = [
-            ["用户登录", "工程管理", "程序编辑", "程序数据", "IO检测"],
-            ["点动管理", "日志管理", "通用设置", "高级设置", "用户应用"],
-            ["机器人点位", "用户坐标系", "工具坐标系", "状态监视", "机械臂"]
+        # 功能按钮配置 - 使用字典定义每个按钮
+        button_configs = [
+            [
+                {"id": "user_login", "text": "用户登录", "icon": "👤"},
+                {"id": "project_manage", "text": "工程管理", "icon": "📁"},
+                {"id": "program_edit", "text": "程序编辑", "icon": "📝"},
+                {"id": "program_data", "text": "程序数据", "icon": "📊"},
+                {"id": "io_detect", "text": "IO检测", "icon": "🔌"}
+            ],
+            [
+                {"id": "jog_manage", "text": "点动管理", "icon": "🎮"},
+                {"id": "log_manage", "text": "日志管理", "icon": "📋"},
+                {"id": "general_setting", "text": "通用设置", "icon": "⚙️"},
+                {"id": "advanced_setting", "text": "高级设置", "icon": "🔧"},
+                {"id": "user_app", "text": "用户应用", "icon": "📱"}
+            ],
+            [
+                {"id": "robot_points", "text": "机器人点位", "icon": "📍"},
+                {"id": "user_coordinate", "text": "用户坐标系", "icon": "📐"},
+                {"id": "tool_coordinate", "text": "工具坐标系", "icon": "🛠️"},
+                {"id": "status_monitor", "text": "状态监视", "icon": "👁️"},
+                {"id": "robot_arm", "text": "机械臂", "icon": "🤖"}
+            ]
         ]
+
+        # 按钮点击处理映射
+        self.button_handlers = {
+            "user_login": self.code_click,
+            "project_manage": self.code_click,
+            "program_edit": self.code_click,
+            "program_data": self.code_click,
+            "io_detect": self.code_click,
+            "jog_manage": self.setting_click,  # 点动管理 -> 设置页面
+            "log_manage": self.code_click,
+            "general_setting": self.code_click,
+            "advanced_setting": self.code_click,
+            "user_app": self.code_click,
+            "robot_points": self.code_click,
+            "user_coordinate": self.code_click,
+            "tool_coordinate": self.code_click,
+            "status_monitor": self.code_click,
+            "robot_arm": self.robot_click  # 机械臂 -> 机械臂页面
+        }
 
         # 创建3x5的按钮网格
         for row in range(3):
             for col in range(5):
+                config = button_configs[row][col]
+
                 button = QPushButton()
+                button.setObjectName(config["id"])  # 设置对象名称
                 button.setStyleSheet("""
                     QPushButton {
                         border: 2px solid #E0E0E0;
@@ -232,68 +284,61 @@ class MainWindow:
                 button_layout = QVBoxLayout(button)
 
                 # 图标
-                icon = QLabel("📱")
+                icon = QLabel(config["icon"])
                 icon.setAlignment(Qt.AlignCenter)
                 icon.setStyleSheet("font-size: 32px; margin-bottom: 8px;")
                 icon.setMouseTracking(True)
                 button_layout.addWidget(icon)
 
                 # 文字
-                text = QLabel(button_texts[row][col])
+                text = QLabel(config["text"])
                 text.setAlignment(Qt.AlignCenter)
                 text.setStyleSheet("font-size: 12px; font-weight: bold; color: #333333;")
                 text.setMouseTracking(True)
                 button_layout.addWidget(text)
 
-                # 连接点击事件
-                if row == 1 and col == 0:  # 工程管理按钮
-                    button.clicked.connect(self.setting_click)
-                elif row == 2 and col == 4:  # 机械臂按钮
-                    button.clicked.connect(self.robot_click)
-                else:
-                    button.clicked.connect(self.code_click)
+                # 连接点击事件 - 使用标识符映射
+                handler = self.button_handlers.get(config["id"], self.code_click)
+                button.clicked.connect(handler)
 
                 home_layout.addWidget(button, row, col)
 
-        # 添加到堆叠窗口
-        self.main_content.addWidget(home_page)
+        return home_page
 
-    def switch_to_component(self, component):
+    def switch_to_component(self, component, component_name=None):
         """切换到指定组件"""
-        # 移除当前所有组件
-        while self.main_content.count() > 0:
-            widget = self.main_content.widget(0)
-            self.main_content.removeWidget(widget)
-            widget.deleteLater()
-
-        # 添加新组件
-        self.main_content.addWidget(component)
-        self.main_content.setCurrentWidget(component)
-
-    def switch_to_page(self, page_index):
-        """切换到指定页面（备用方法）"""
-        if 0 <= page_index < self.main_content.count():
-            self.main_content.setCurrentIndex(page_index)
+        if component_name and component_name in self.components:
+            # 如果组件已存在，直接切换
+            existing_component = self.components[component_name]
+            self.main_content.setCurrentWidget(existing_component)
+        else:
+            # 添加新组件
+            self.main_content.addWidget(component)
+            if component_name:
+                self.components[component_name] = component
+            self.main_content.setCurrentWidget(component)
 
     def home_click(self):
         """返回主页"""
         print("homeClick - 返回主页")
-        # 这里可以重新设置主页内容
-        self.setup_home_page()
-        self.switch_to_page(0)
+        # 通过名称切换到主页
+        if "home" in self.components:
+            self.main_content.setCurrentWidget(self.components["home"])
+        else:
+            self.main_content.setCurrentIndex(0)
 
     def tree_click(self):
         """跳转到树形页面"""
         print("treeClick - 跳转到树形页面")
-        # 后续可以在这里切换到树形组件
-        # from .tree_component import TreeComponent
-        # tree_component = TreeComponent()
-        # self.switch_to_component(tree_component)
+        tree_component = TreePage(self)  # 创建TreePage实例，传递self以便回调
+        self.switch_to_component(tree_component, "tree")  # 添加组件名称
 
     def code_click(self):
         """跳转到代码页面"""
         print("codeClick - 跳转到代码页面")
-        # 后续可以在这里切换到代码组件
+
+        code_component = CodeEditPage(self)  # 创建TreePage实例，传递self以便回调
+        self.switch_to_component(code_component, "program_edit")  # 添加组件名称
 
     def setting_click(self):
         """跳转到设置页面"""
@@ -304,6 +349,10 @@ class MainWindow:
         """跳转到机械臂页面"""
         print("robotClick - 跳转到机械臂页面")
         # 后续可以在这里切换到机械臂组件
+        GLB_ViewerPage = GLBViewerPage(self)  # 创建TreePage实例，传递self以便回调
+        self.switch_to_component(GLB_ViewerPage, "robot_arm")  # 添加组件名称
+
+
 
     # 其他方法保持不变...
     def setup_title_bar(self, main_layout):
