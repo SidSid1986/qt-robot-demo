@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QTimer, QPoint, QRect
 from PySide6.QtGui import QPixmap, QCursor, QMouseEvent
 from .pages.tree_page import TreePage  # 导入TreePage
 from .pages.code_edit import CodeEditPage
-from .pages.GLBViewerPage import GLBViewerPage
+from .pages.URDFViewerPage import URDFViewerPage
 
 
 
@@ -349,8 +349,8 @@ class MainWindow:
         """跳转到机械臂页面"""
         print("robotClick - 跳转到机械臂页面")
         # 后续可以在这里切换到机械臂组件
-        GLB_ViewerPage = GLBViewerPage(self)  # 创建TreePage实例，传递self以便回调
-        self.switch_to_component(GLB_ViewerPage, "robot_arm")  # 添加组件名称
+        URDF_ViewerPage = URDFViewerPage(self)  # 创建TreePage实例，传递self以便回调
+        self.switch_to_component(URDF_ViewerPage, "robot_arm")  # 添加组件名称
 
 
 
